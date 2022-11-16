@@ -1,9 +1,12 @@
 import websocket
-import _thread
+import threading
 import time
-import rel
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 import json
 import pandas as pd
+import datetime
+import random
 
 # Order Flow Trading Stategy
 # Microstructure analysis of the market
@@ -18,7 +21,14 @@ import pandas as pd
 
 # responsive buyer trigger buy
 
+x = []
+y = []
+
+# create and modify a pandas dataframe on each websocket message
+# read the pandas dataframe in the animate function and plot f(x)
+
 def on_message(ws, message):
+    """
     msg = json.loads(message)
     bids_data = [(float(price), float(vol)) for price, vol in msg["bids"]]
     asks_data = [(float(price), float(vol)) for price, vol in msg["asks"]]
@@ -32,7 +42,15 @@ def on_message(ws, message):
     apply_strategy = 1 if tension > threshold else 0
     d = {"bids vol": [bid_total_vol], "asks vol": [ask_total_vol], "best bid": [best_bid], "best ask": [best_ask], "apply": [apply_strategy]}
     df = pd.DataFrame(data=d)
-    print(df)
+    print(df)"""
+    #print(message)
+    x.append(datetime.datetime.now())
+    y.append(random.randint(0, 10))
+
+def animate(i, x, y):
+    ax.clear()
+    ax.plot(x, y)
+    plt.subplots_adjust(bottom=0.30)
 
 def on_error(ws, error):
     print(error)
@@ -43,14 +61,20 @@ def on_close(ws, close_status_code, close_msg):
 def on_open(ws):
     print("Opened connection")
 
-if __name__ == "__main__":
-    #websocket.enableTrace(True)
-    ws = websocket.WebSocketApp("wss://stream.binance.com:9443/ws/bnbusdt@depth5@100ms",
-                              on_open=on_open,
-                              on_message=on_message,
-                              on_error=on_error,
-                              on_close=on_close)
+def wsthread():
+    # websocket.enableTrace(True)
+    ws = websocket.WebSocketApp("wss://stream.binance.com:9443/ws/bnbusdt@depth5@1000ms",
+                                on_open=on_open,
+                                on_message=on_message,
+                                on_error=on_error,
+                                on_close=on_close)
+    ws.run_forever()
 
-    ws.run_forever(dispatcher=rel, reconnect=5)  # Set dispatcher to automatic reconnection, 5 second reconnect delay if connection closed unexpectedly
-    rel.signal(2, rel.abort)  # Keyboard Interrupt
-    rel.dispatch()
+if __name__ == "__main__":
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+    t = threading.Thread(target=wsthread)
+    t.start()
+
+    ani = animation.FuncAnimation(fig, animate, fargs=(x, y), interval=100)
+    plt.show()
